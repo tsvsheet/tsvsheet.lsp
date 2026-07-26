@@ -100,12 +100,13 @@ func gridLimit(text documentText, lineCount docIndex) docIndex {
 }
 
 // isSkipped reports whether a document line is one the engine drops rather than
-// treating as a grid row: a first-line shebang or a `# ` comment line.
+// treating as a grid row. The rule itself belongs to the language, so it is
+// asked of the engine (SPECIFICATION §3: a first-line `#!` shebang, a `#.`
+// comment or directive line, a legacy `# ` line) rather than re-derived here —
+// a second implementation would drift the moment the markers change, and it
+// once did. docIndex is 0-based; tsvsheet.LineNumber is 1-based.
 func isSkipped(index docIndex, line lineText) bool {
-	if index == 0 && strings.HasPrefix(string(line), "#!") {
-		return true
-	}
-	return strings.HasPrefix(string(line), "# ")
+	return tsvsheet.IsCommentLine(tsvsheet.LineNumber(index+1), tsvsheet.SourceLine(line))
 }
 
 // gridRow maps a document-line index to its grid row, reporting false when the

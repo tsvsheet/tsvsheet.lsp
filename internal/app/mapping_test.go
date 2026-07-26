@@ -58,8 +58,13 @@ func TestIsSkipped(t *testing.T) {
 	}{
 		{name: "shebang on first line", index: 0, line: "#!/usr/bin/env tsvsheet", want: true},
 		{name: "shebang not on first line is a cell", index: 1, line: "#!x", want: false},
-		{name: "comment line", index: 3, line: "# a note", want: true},
+		{name: "legacy hash-space comment", index: 3, line: "# a note", want: true},
+		{name: "directive marker anywhere", index: 3, line: "#.hide-cols\tB-M", want: true},
+		{name: "directive marker on first line", index: 0, line: "#.header-rows\t1", want: true},
+		{name: "prose after the directive marker", index: 2, line: "#.some comment", want: true},
 		{name: "hash without space is a cell", index: 0, line: "#foo", want: false},
+		{name: "hash before a TAB is a cell", index: 2, line: "#\tnot a comment", want: false},
+		{name: "error value is a cell", index: 2, line: "#N/A\t=A2", want: false},
 		{name: "ordinary line", index: 0, line: "a\tb", want: false},
 	}
 
