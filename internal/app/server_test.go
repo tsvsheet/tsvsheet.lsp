@@ -265,3 +265,20 @@ func TestDocumentsStore(t *testing.T) {
 	_, ok = docs.get(testURI)
 	want.False(ok)
 }
+
+// TestServerIsCopyableBecauseItsStoreIsSharedByPointer pins the reason its
+// methods take value receivers. If copying a server duplicated its document
+// store, a handler working on a copy would write into a store nobody reads, and
+// the editor would see stale text with no error anywhere to explain it.
+func TestServerIsCopyableBecauseItsStoreIsSharedByPointer(t *testing.T) {
+	t.Parallel()
+	original := newServer(discardLogger())
+	duplicate := original
+
+	original.docs.set("file:///a.tsvt", "1\t2")
+
+	got, ok := duplicate.docs.get("file:///a.tsvt")
+
+	assert.True(t, ok, "the copy sees the same store")
+	assert.Equal(t, documentText("1\t2"), got)
+}

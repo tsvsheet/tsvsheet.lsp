@@ -117,3 +117,32 @@ func TestCheckDiagnosticInvalidCellDegradesToOrigin(t *testing.T) {
 	want.Equal(protocol.DiagnosticSeverityError, d.Severity)
 	want.Equal(uint32(0), d.Range.Start.Line)
 }
+
+// TestErrSyntaxIsWhatRoutesToPerCellPinpointing asserts the sentinel this
+// package branches on, with errors.Is, rather than trusting that the branch it
+// selects happens to be reached. The routing is the whole design: a syntax
+// error means "some cell is broken", and only a per-cell pass can say WHICH —
+// a whole-document parse reports the first and stops, so an author fixing a
+// sheet would learn about their mistakes one round-trip at a time.
+func TestErrSyntaxIsWhatRoutesToPerCellPinpointing(t *testing.T) {
+	t.Parallel()
+	_, err := tsvsheet.Parse([]byte("=1+\n"))
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, tsvsheet.ErrSyntax, "a bad formula is a syntax error, matchable as one")
+
+	_, clean := tsvsheet.Parse([]byte("1\t2\n"))
+	assert.NotErrorIs(t, clean, tsvsheet.ErrSyntax)
+}
+
+// TestSyntaxDiagnosticsReportsEveryOffendingCellNotOnlyTheFirst pins why each
+// cell is compiled in isolation, exactly as the engine compiles them. Reporting
+// only the cell the whole-sheet parse tripped on would make fixing a sheet an
+// iterative guessing game.
+func TestSyntaxDiagnosticsReportsEveryOffendingCellNotOnlyTheFirst(t *testing.T) {
+	t.Parallel()
+	diags := diagnose("=1+\t=2*\t=ok\n")
+
+	require.Len(t, diags, 2, "both broken cells are reported: %v", diags)
+	assert.NotEqual(t, diags[0].Range, diags[1].Range, "each at its own cell")
+}
