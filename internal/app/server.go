@@ -125,6 +125,33 @@ func (s server) Hover(_ context.Context, params *protocol.HoverParams) (*protoco
 	return hover(text, params.Position), nil
 }
 
+// CodeAction returns the actions available over the requested range, or nil
+// when the document is not open. The range's start is what selects the cell: a
+// fill acts on the cell the cursor is in, and work order 022 leaves multi-cell
+// fill to a later one.
+func (s server) CodeAction(
+	_ context.Context,
+	params *protocol.CodeActionParams,
+) ([]protocol.CommandOrCodeAction, error) {
+	text, ok := s.docs.get(params.TextDocument.URI)
+	if !ok {
+		return nil, nil
+	}
+	s.logger.Debug("codeAction", slog.String("uri", string(params.TextDocument.URI)))
+	return offered(codeActions(params.TextDocument.URI, text, params.Range.Start)), nil
+}
+
+// offered adapts concrete actions to the protocol's Command|CodeAction union.
+// codeActions stays concrete on purpose: its tests then assert on titles and
+// edits directly, instead of unwrapping a sealed interface to reach them.
+func offered(actions []protocol.CodeAction) []protocol.CommandOrCodeAction {
+	out := make([]protocol.CommandOrCodeAction, 0, len(actions))
+	for i := range actions {
+		out = append(out, &actions[i])
+	}
+	return out
+}
+
 // sync stores a document's text and publishes its freshly computed diagnostics.
 func (s server) sync(ctx context.Context, docURI uri.URI, text documentText) error {
 	s.docs.set(docURI, text)
@@ -157,7 +184,7 @@ func publishDiagnostics(ctx context.Context, docURI uri.URI, diags []protocol.Di
 }
 
 // capabilities is the server's advertised capability set: open/close plus
-// full-document change sync, and hover.
+// full-document change sync, hover, and code actions.
 func capabilities() *protocol.InitializeResult {
 	change := protocol.TextDocumentSyncKindFull
 	openClose := true
@@ -167,7 +194,8 @@ func capabilities() *protocol.InitializeResult {
 				OpenClose: &openClose,
 				Change:    &change,
 			},
-			HoverProvider: protocol.Boolean(true),
+			HoverProvider:      protocol.Boolean(true),
+			CodeActionProvider: protocol.Boolean(true),
 		},
 		ServerInfo: protocol.ServerInfo{
 			Name:    serverName,
