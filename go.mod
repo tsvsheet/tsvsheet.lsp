@@ -8,7 +8,7 @@ retract [v0.1.0, v0.3.0]
 require (
 	github.com/gomatic/go-error v0.3.15
 	github.com/stretchr/testify v1.11.1
-	github.com/tsvsheet/go-tsvsheet v0.28.0
+	github.com/tsvsheet/go-tsvsheet v0.28.1
 	github.com/urfave/cli/v3 v3.10.1
 	go.lsp.dev/jsonrpc2 v1.0.1
 	go.lsp.dev/protocol v1.0.1
